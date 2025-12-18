@@ -35,16 +35,8 @@ def get_data():
 
 
 def format_data(df: pd.DataFrame):
-    # create new columns for road info and user direction
-    df["road_info"] = df["oov2roaduserdescription"].apply(
-        lambda x: x.split("\n")[0].strip() if isinstance(x, str) and "\n" in x else None
-    )
-    df["reroute"] = df["oov2roaduserdescription"].apply(
-        lambda x: " ".join(x.split("\n")[1:]).strip() if isinstance(x, str) else None
-    )
-
-    # remove the first instance of "Omkørsel via: " from reroute
-    df["reroute"] = df["reroute"].str.replace("Omkørsel via: ", "", n=1).str.strip()
+    # format road info and user direction
+    df["road_info"] = df["oov2roaduserdescription"].str.strip()
 
     # rename column dataframe columns to match the template
     df.rename(
@@ -56,6 +48,8 @@ def format_data(df: pd.DataFrame):
             "name": "contractor_company",
             "oov2roadmarkstart": "starttime",
             "oov2roadmarkend": "endtime",
+            "serialnumber": "case_id",
+            "modulename": "source",
         },
         inplace=True,
     )
@@ -85,12 +79,27 @@ def format_data(df: pd.DataFrame):
         axis=1,
     )
 
+    # Capitalize the contractor contact person names
+    df["contractor_contact_person"] = df["contractor_contact_person"].apply(
+        lambda x: (
+            " ".join(name_element.capitalize() for name_element in x.split(" "))
+            if isinstance(x, str)
+            else x
+        )
+    )
+
 
 def main():
     # get the data from the API
     data = get_data()
     df = pd.DataFrame(data)
     format_data(df)
+
+    # remove duplicates based on case_id and source
+    df.drop_duplicates(
+        subset=["case_id", "source"],
+        inplace=True,
+    )
 
     # read the template and render the data
     doc_template = DocxTemplate("trafik_info_template.docx")
@@ -116,7 +125,7 @@ if __name__ == "__main__":
         today_date_text = today_date.strftime("%d-%m-%Y")
         next_week_number = today_date.isocalendar()[1] + 1
 
-        output_folder_base = os.getenv("OUTPUT_FOLDER")  # Get from .env
+        output_folder_base = os.getenv("OUTPUT_FOLDER", "")  # Get from .env
         output_folder = os.path.join(output_folder_base, str(today_date.year))
         os.makedirs(output_folder, exist_ok=True)
 
