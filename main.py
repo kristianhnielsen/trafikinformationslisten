@@ -22,7 +22,7 @@ def get_data():
         "outSR": "25832",
         "f": "geojson",
         "outFields": "*",
-        "where": "traficstatus = 'Trafikudmeldt' and dagetilstart <= 12",
+        "where": "traficstatus = 'Trafikudmeldt' and dagetilstart <= 10",
         "orderByFields": "startdate",
     }
 
@@ -87,6 +87,9 @@ def format_data(df: pd.DataFrame):
             else x
         )
     )
+    
+    for col in df.columns:
+        df[col] = df[col].str.replace('&', '&amp;').str.strip()
 
 
 def main():
